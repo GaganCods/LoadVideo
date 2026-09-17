@@ -1,0 +1,6 @@
+{
+  "name": "LoadVideo",
+  "description": "LoadVideo is the ultimate free online video downloader for HD MP4 videos and MP3 audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
