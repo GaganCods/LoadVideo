@@ -109,7 +109,7 @@ export async function requestDownloadUrl(url: string, formatId: string): Promise
       return {
         ok: true,
         url: `https://www.w3schools.com/html/mov_bbb.mp4?format=${formatId}`,
-        filename: `LoadVideo_Download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
+        filename: `video_download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
         expiresInSeconds: 3600,
       };
     }
@@ -120,7 +120,7 @@ export async function requestDownloadUrl(url: string, formatId: string): Promise
       return {
         ok: true,
         url: `https://www.w3schools.com/html/mov_bbb.mp4?format=${formatId}`,
-        filename: `LoadVideo_Download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
+        filename: `video_download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
         expiresInSeconds: 3600,
       };
     }
@@ -137,7 +137,7 @@ export async function requestDownloadUrl(url: string, formatId: string): Promise
     return {
       ok: true,
       url: `https://www.w3schools.com/html/mov_bbb.mp4?format=${formatId}`,
-      filename: `LoadVideo_Download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
+      filename: `video_download_${Date.now()}.${formatId.includes('mp3') ? 'mp3' : 'mp4'}`,
       expiresInSeconds: 3600,
     };
   }

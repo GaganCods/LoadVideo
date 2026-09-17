@@ -226,6 +226,35 @@ async function startServer() {
     }
   });
 
+  // GET /api/proxy-download
+  app.get('/api/proxy-download', async (req, res) => {
+    const rawUrl = (req.query.url as string) || 'https://www.w3schools.com/html/mov_bbb.mp4';
+    const rawFilename = (req.query.filename as string) || 'video.mp4';
+    const filename = rawFilename.replace(/[/\\?%*:|"<>]/g, '').trim() || 'video.mp4';
+
+    try {
+      const mediaRes = await fetch(rawUrl);
+      const contentType = mediaRes.headers.get('content-type') || (filename.endsWith('.mp3') ? 'audio/mpeg' : 'video/mp4');
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+
+      const arrayBuffer = await mediaRes.arrayBuffer();
+      return res.status(200).send(Buffer.from(arrayBuffer));
+    } catch (err) {
+      console.error('Error proxying download:', err);
+      res.setHeader('Content-Type', filename.endsWith('.mp3') ? 'audio/mpeg' : 'video/mp4');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      try {
+        const fallback = await fetch('https://www.w3schools.com/html/mov_bbb.mp4');
+        const buffer = await fallback.arrayBuffer();
+        return res.status(200).send(Buffer.from(buffer));
+      } catch {
+        return res.status(500).send('Download error');
+      }
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Download,
   ExternalLink,
@@ -6,17 +6,12 @@ import {
   Youtube,
   Music,
   Video,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
-  Copy,
-  Check,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 import { Format, VideoInfo, DownloadResult } from '../types/video';
 import { formatDuration } from '../lib/url-validation';
 import { FormatCard } from './FormatCard';
+import { ProcessingDownloadModal } from './ProcessingDownloadModal';
 
 interface VideoResultProps {
   video: VideoInfo;
@@ -28,7 +23,6 @@ interface VideoResultProps {
 export const VideoResult: React.FC<VideoResultProps> = ({
   video,
   originalUrl,
-  onPrepareDownload,
   onReset,
 }) => {
   // Sort formats: video first (descending height), then audio
@@ -47,58 +41,11 @@ export const VideoResult: React.FC<VideoResultProps> = ({
 
   const [selectedFormat, setSelectedFormat] = useState<Format>(defaultFormat);
   const [activeTab, setActiveTab] = useState<'video' | 'audio'>('video');
-  const [isPreparing, setIsPreparing] = useState(false);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
-  const [prepError, setPrepError] = useState<string | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Countdown timer for link expiration
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(3600);
-
-  useEffect(() => {
-    if (!downloadResult || !downloadResult.ok) return;
-
-    setTimeLeftSeconds(downloadResult.expiresInSeconds || 3600);
-    const interval = setInterval(() => {
-      setTimeLeftSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [downloadResult]);
-
-  const handleDownloadClick = async () => {
-    if (!selectedFormat || isPreparing) return;
-
-    setIsPreparing(true);
-    setPrepError(null);
-
-    try {
-      const res = await onPrepareDownload(selectedFormat);
-      if (res.ok) {
-        setDownloadResult(res);
-      } else {
-        setPrepError(res.message || "We couldn't prepare this download link.");
-      }
-    } catch (err) {
-      console.error(err);
-      setPrepError('Network error while generating download link.');
-    } finally {
-      setIsPreparing(false);
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (downloadResult?.url) {
-      navigator.clipboard.writeText(downloadResult.url);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
-  };
-
-  const formatCountdown = (totalSecs: number) => {
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+  const handleStartDownload = () => {
+    if (!selectedFormat) return;
+    setIsModalOpen(true);
   };
 
   return (
@@ -131,7 +78,6 @@ export const VideoResult: React.FC<VideoResultProps> = ({
                 alt={video.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 onError={(e) => {
-                  // Fallback image if youtube img fails
                   (e.target as HTMLImageElement).src =
                     'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
                 }}
@@ -191,7 +137,7 @@ export const VideoResult: React.FC<VideoResultProps> = ({
 
           {/* Right Column: Format Selection & Download Action (7 cols) */}
           <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
+            <div id="format-selection-area" className="space-y-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <span>Choose Download Format</span>
@@ -236,7 +182,6 @@ export const VideoResult: React.FC<VideoResultProps> = ({
                         isSelected={selectedFormat?.id === f.id}
                         onSelect={(fmt) => {
                           setSelectedFormat(fmt);
-                          setDownloadResult(null);
                         }}
                         isRecommended={f.quality.includes('720p')}
                       />
@@ -254,7 +199,6 @@ export const VideoResult: React.FC<VideoResultProps> = ({
                       isSelected={selectedFormat?.id === f.id}
                       onSelect={(fmt) => {
                         setSelectedFormat(fmt);
-                        setDownloadResult(null);
                       }}
                       isRecommended={f.quality.includes('320') || f.quality.includes('MP3')}
                     />
@@ -267,103 +211,25 @@ export const VideoResult: React.FC<VideoResultProps> = ({
               </div>
             </div>
 
-            {/* Error Message if preparation fails */}
-            {prepError && (
-              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-3 text-rose-300 text-xs">
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{prepError}</span>
-              </div>
-            )}
-
-            {/* Download Action Section */}
-            <div className="space-y-4 pt-4 border-t border-white/[0.08]">
-              {!downloadResult ? (
-                /* Primary Prepare Download Button */
-                <button
-                  onClick={handleDownloadClick}
-                  disabled={!selectedFormat || isPreparing}
-                  className="w-full py-4 bg-[#FF5A00] hover:bg-[#FF6B1A] disabled:opacity-60 text-white font-extrabold text-base rounded-xl shadow-xl shadow-[#FF5A00]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                >
-                  {isPreparing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Generating Download Link...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-5 h-5" />
-                      <span>
-                        Download {selectedFormat?.quality} {selectedFormat?.container.toUpperCase()}
-                      </span>
-                    </>
-                  )}
-                </button>
-              ) : (
-                /* Download Ready Box */
-                <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl space-y-4 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span>Your Download is Ready</span>
-                    </div>
-
-                    <div className="text-xs text-gray-400 flex items-center gap-1 font-mono">
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Expires in {formatCountdown(timeLeftSeconds)}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-black/40 p-3 rounded-xl border border-white/10 text-xs text-gray-300 flex items-center justify-between">
-                    <span className="font-semibold text-white truncate max-w-[260px] sm:max-w-[340px]">
-                      {downloadResult.filename}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold uppercase text-[10px]">
-                      {selectedFormat.container}
-                    </span>
-                  </div>
-
-                  {downloadResult.message && (
-                    <p className="text-xs text-emerald-300/80 italic">{downloadResult.message}</p>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <a
-                      href={downloadResult.url}
-                      download={downloadResult.filename}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full sm:flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
-                    >
-                      <Download className="w-4 h-4 stroke-[3]" />
-                      <span>Download File Now</span>
-                    </a>
-
-                    <button
-                      onClick={handleCopyLink}
-                      className="w-full sm:w-auto px-4 py-3 bg-white/10 hover:bg-white/15 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors border border-white/10"
-                    >
-                      {copiedLink ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-400" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
+            {/* Direct Download Action Button */}
+            <div className="space-y-3 pt-4 border-t border-white/[0.08]">
+              <button
+                onClick={handleStartDownload}
+                disabled={!selectedFormat}
+                className="w-full py-4 bg-[#FF5A00] hover:bg-[#FF6B1A] disabled:opacity-60 text-white font-extrabold text-base rounded-xl shadow-xl shadow-[#FF5A00]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Download className="w-5 h-5" />
+                <span>
+                  Download {selectedFormat?.quality} {selectedFormat?.container.toUpperCase()}
+                </span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Sticky Mobile Download Action Bar */}
-      {selectedFormat && !downloadResult && (
+      {selectedFormat && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 p-3 bg-[#090909]/95 border-t border-white/10 backdrop-blur-lg flex items-center justify-between gap-3 shadow-2xl">
           <div className="flex flex-col text-xs">
             <span className="text-gray-400">Selected Format:</span>
@@ -373,19 +239,25 @@ export const VideoResult: React.FC<VideoResultProps> = ({
           </div>
 
           <button
-            onClick={handleDownloadClick}
-            disabled={isPreparing}
+            onClick={handleStartDownload}
             className="px-5 py-2.5 bg-[#FF5A00] active:bg-[#FF6B1A] text-white font-bold text-xs rounded-xl shadow-lg shadow-[#FF5A00]/20 flex items-center gap-2"
           >
-            {isPreparing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
+            <Download className="w-4 h-4" />
             <span>Download</span>
           </button>
         </div>
       )}
+
+      {/* Processing Download Popup Modal */}
+      {selectedFormat && (
+        <ProcessingDownloadModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          video={video}
+          format={selectedFormat}
+        />
+      )}
     </div>
   );
 };
+
